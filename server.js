@@ -113,7 +113,7 @@ app.post('/api/auth/signup', async (req, res, next) => {
     const email = String(req.body.email).trim().toLowerCase();
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existing) return res.status(409).json({ error: 'An account already exists with this email.' });
-    const passwordHash = await bcrypt.hash(String(req.body.password), 10);
+    const passwordHash = bcrypt.hashSync(String(req.body.password), 10);
     const result = db.prepare(`
       INSERT INTO users (name, email, password_hash, role, profile_completed)
       VALUES (?, ?, ?, ?, 0)
