@@ -112,20 +112,48 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, database: dbPath, message: 'Agritech SQLite API is running.' });
 });
 
-app.post('/api/auth/signup', async (req, res, next) => {
+app.post('/api/auth/signup', (req, res, next) => {
   try {
     requireFields(req.body, ['name', 'email', 'password', 'role']);
+
     const role = String(req.body.role).trim();
-    if (!validRoles.has(role)) return res.status(400).json({ error: 'Invalid role selected.' });
+
+    if (!validRoles.has(role)) {
+      return res.status(400).json({ error: 'Invalid role selected.' });
+    }
+
     const email = String(req.body.email).trim().toLowerCase();
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-    if (existing) return res.status(409).json({ error: 'An account already exists with this email.' });
+
+    const existing = db
+      .prepare('SELECT id, password_hash FROM users WHERE email = ?')
+      .get(email);
+
+    if (existing) {
+      if (!isValidBcryptHash(existing.password_hash)) {
+        db.prepare('DELETE FROM users WHERE id = ?').run(existing.id);
+      } else {
+        return res.status(409).json({
+          error: 'An account already exists with this email.'
+        });
+      }
+    }
+
     const passwordHash = bcrypt.hashSync(String(req.body.password), 10);
+
     const result = db.prepare(`
       INSERT INTO users (name, email, password_hash, role, profile_completed)
       VALUES (?, ?, ?, ?, 0)
-    `).run(String(req.body.name).trim(), email, passwordHash, role);
-    res.status(201).json({ user: getPublicUserById(result.lastInsertRowid) });
+    `).run(
+      String(req.body.name).trim(),
+      email,
+      passwordHash,
+      role
+    );
+
+    res.status(201).json({
+      user: getPublicUserById(result.lastInsertRowid)
+    });
+
   } catch (error) {
     next(error);
   }
