@@ -12,6 +12,13 @@ const GOOGLE_PLACES_API_KEY = String(process.env.GOOGLE_PLACES_API_KEY || projec
 const WHATSAPP_AGENT_NUMBER = String(process.env.WHATSAPP_AGENT_NUMBER || projectConfig.WHATSAPP_AGENT_NUMBER || '').replace(/\D/g, '');
 const DEFAULT_SEARCH_RADIUS_METERS = Number(process.env.DEFAULT_SEARCH_RADIUS_METERS || projectConfig.DEFAULT_SEARCH_RADIUS_METERS || 7000);
 const validRoles = new Set(['Farmer', 'Labour', 'Consumer']);
+function isValidBcryptHash(value) {
+  return (
+    typeof value === "string" &&
+    /^\$2[aby]\$\d{2}\$/.test(value) &&
+    value.length >= 50
+  );
+}
 
 app.use(cors());
 app.use(express.json({ limit: '35mb' }));
