@@ -159,15 +159,45 @@ app.post('/api/auth/signup', (req, res, next) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res, next) => {
+app.post('/api/auth/login', (req, res, next) => {
   try {
     requireFields(req.body, ['email', 'password']);
+
     const email = String(req.body.email).trim().toLowerCase();
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    if (!user) return res.status(401).json({ error: 'Invalid email or password.' });
-    const ok = await bcrypt.compare(String(req.body.password), user.password_hash);
-    if (!ok) return res.status(401).json({ error: 'Invalid email or password.' });
-    res.json({ user: publicUser(user) });
+
+    const user = db
+      .prepare('SELECT * FROM users WHERE email = ?')
+      .get(email);
+
+    if (!user) {
+      return res.status(401).json({
+        error: 'Invalid email or password.'
+      });
+    }
+
+    if (!isValidBcryptHash(user.password_hash)) {
+      db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
+
+      return res.status(409).json({
+        error: 'Old broken account was removed. Please signup again with the same email.'
+      });
+    }
+
+    const ok = bcrypt.compareSync(
+      String(req.body.password),
+      user.password_hash
+    );
+
+    if (!ok) {
+      return res.status(401).json({
+        error: 'Invalid email or password.'
+      });
+    }
+
+    res.json({
+      user: publicUser(user)
+    });
+
   } catch (error) {
     next(error);
   }
